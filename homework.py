@@ -1,3 +1,8 @@
+from dataclasses import asdict, dataclass
+from typing import ClassVar, Dict
+
+
+@dataclass
 class InfoMessage:
     """Информационное сообщение о тренировке.
     Содержит следующие параметры:
@@ -7,65 +12,51 @@ class InfoMessage:
     speed - средняя скорость движения в километрах в час
     calories - количество потряченных калорий в ккал.
     """
-
-    def __init__(self,
-                 training_type: str,
-                 duration: float,
-                 distance: float,
-                 speed: float,
-                 calories: float) -> str:
-        self.training_type = training_type
-        self.duration = duration
-        self.distance = distance
-        self.speed = speed
-        self.calories = calories
+    training_type: str
+    duration: float
+    distance: float
+    speed: float
+    calories: float
+    TEXT_INFO: str = ('Тип тренировки: {}; '
+                      'Длительность: {:.3f} ч.; '
+                      'Дистанция: {:.3f} км; '
+                      'Ср. скорость: {:.3f} км/ч; '
+                      'Потрачено ккал: {:.3f}.'
+                      )
 
     def get_message(self) -> str:
-        return(f'Тип тренировки: {self.training_type}; '
-               f'Длительность: {self.duration:.3f} ч.; '
-               f'Дистанция: {self.distance:.3f} км; '
-               f'Ср. скорость: {self.speed:.3f} км/ч; '
-               f'Потрачено ккал: {self.calories:.3f}.'
-               )
+        return self.TEXT_INFO.format(*asdict(self).values())
 
 
+@dataclass
 class Training:
     """Базовый класс тренировки.
     Содержит следующие параметры:
-    action - количество базовых движений в тренировке в единицах,
-    duration - время тренировки в часах,
-    weight - вес спортсмена в килограммах.
-    Содержит следующие переменные класса:
-    M_IN_KM - коэффициент расстояния, необходимый для перевода
-    километров в метры,
-    LEN_STEP - длина шага спортсмена в метрах.
+    action: int - количество базовых движений в тренировке в единицах,
+    duration: float - время тренировки в часах,
+    weight: float - вес спортсмена в килограммах.
     """
 
-    M_IN_KM = 1000
-    LEN_STEP = 0.65
-
-    def __init__(self,
-                 action: int,
-                 duration: float,
-                 weight: float
-                 ) -> None:
-        self.action = action
-        self.duration = duration
-        self.weight = weight
+    action: int = 0
+    duration: float = 0
+    weight: float = 0
+    M_IN_KM: ClassVar[int] = 1000
+    LEN_STEP: ClassVar[float] = 0.65
+    H_IN_M: ClassVar[int] = 60
 
     def get_distance(self) -> float:
         """Получить дистанцию в км."""
-        distance = self.action * self.LEN_STEP / self.M_IN_KM
-        return distance
+        return self.action * self.LEN_STEP / self.M_IN_KM
 
     def get_mean_speed(self) -> float:
         """Получить среднюю скорость движения."""
-        mean_speed = self.get_distance() / self.duration
-        return mean_speed
+        return self.get_distance() / self.duration
 
     def get_spent_calories(self) -> float:
         """Получить количество затраченных калорий."""
-        pass
+        raise NotImplementedError(f'Не определен метод расчета количества'
+                                  f'потраченных каллорий для тренировки типа'
+                                  f' {self.__class__.__name__}')
 
     def show_training_info(self) -> InfoMessage:
         """Вернуть информационное сообщение о выполненной тренировке."""
@@ -78,53 +69,45 @@ class Training:
         return info_message
 
 
+@dataclass
 class Running(Training):
     """Тренировка: бег."""
 
+    COEFF_CAL_RUN_1: ClassVar[int] = 18
+    COEFF_CAL_RUN_2: ClassVar[int] = 20
+
     def get_spent_calories(self) -> float:
-        """Получить количество затраченных калорий
-        cf_run_1, cf_run_2 - коэффициенты, используемые для расчета
-        количества потраченных калорий в тренировке Running.
-        cal_run_1 - расчет предварительного значения, которое
-        используется для расчета количества потраченных калорий
-        в тренировке Running.
+        """Получить количество затраченных калорий.
         """
-        cf_run_1 = 18
-        cf_run_2 = 20
-        cal_run_1 = (cf_run_1 * self.get_mean_speed() - cf_run_2) * self.weight
-        calories = cal_run_1 / self.M_IN_KM * (self.duration * 60)
-        return calories
+        return (
+            (self.COEFF_CAL_RUN_1 * self.get_mean_speed()
+             - self.COEFF_CAL_RUN_2) * self.weight / self.M_IN_KM
+            * self.duration * super().H_IN_M
+        )
 
 
+@dataclass
 class SportsWalking(Training):
-    """Тренировка: спортивная ходьба."""
+    """Тренировка: спортивная ходьба.
+    height - рост спортсмена в сантиметрах.
+    """
 
-    def __init__(self,
-                 action: int,
-                 duration: float,
-                 weight: float,
-                 height: int
-                 ) -> None:
-        super().__init__(action, duration, weight)
-        self.height = height
+    height: float = 0
+    COEFF_CAL_WLK_1: ClassVar[float] = 0.035
+    COEFF_CAL_WLK_2: ClassVar[float] = 0.029
+    COEFF_CAL_WLK_3: ClassVar[float] = 2
 
     def get_spent_calories(self) -> float:
-        """Получить количество затраченных калорий
-        cf_wlk_1, cf_wlk_2 - коэффициенты, используемые для расчета
-        количества потраченных калорий в тренировке SportsWalking.
-        cal_wlk_1, cal_wlk_2, cal_wlk_2 - расчет предварительного значения,
-        которое используется для расчета количества потраченных калорий
-        в тренировке Running.
+        """Получить количество затраченных калорий.
         """
-        cf_wlk_1 = 0.035
-        cf_wlk_2 = 0.029
-        cal_wlk_1 = cf_wlk_1 * self.weight
-        cal_wlk_2 = self.get_mean_speed()**2 // self.height
-        cal_wlk_3 = cal_wlk_2 * cf_wlk_2 * self.weight
-        calories = (cal_wlk_1 + cal_wlk_3) * self.duration * 60
-        return calories
+        return(
+            (self.COEFF_CAL_WLK_1 * self.weight + (self.get_mean_speed()
+             ** self.COEFF_CAL_WLK_3 // self.height) * self.COEFF_CAL_WLK_2
+             * self.weight) * self.duration * super().H_IN_M
+        )
 
 
+@dataclass
 class Swimming(Training):
     """Тренировка: плавание.
         LEN_STEP - длина гребка спортсмена в метрах,
@@ -132,50 +115,46 @@ class Swimming(Training):
         count_pool - количество бассейнов, преодоленных спортсменом.
     """
 
-    LEN_STEP = 1.38
-
-    def __init__(self,
-                 action: int,
-                 duration: float,
-                 weight: float,
-                 length_pool: int,
-                 count_pool: int) -> None:
-        super().__init__(action, duration, weight)
-        self.length_pool = length_pool
-        self.count_pool = count_pool
+    length_pool: int = 25
+    count_pool: int = 0
+    LEN_STEP: ClassVar[float] = 1.38
+    COEFF_CAL_SWM_1: ClassVar[float] = 1.1
+    COEFF_CAL_SWM_2: ClassVar[float] = 2
 
     def get_mean_speed(self) -> float:
-        """Получить среднюю скорость движения
-        cal_swm_1 - расчет предварительного значения,
-        которое используется для расчета средней скорости движения.
+        """Получить среднюю скорость движения.
         """
-        cal_swm_1 = self.length_pool * self.count_pool
-        mean_speed = cal_swm_1 / super().M_IN_KM / self.duration
-        return mean_speed
+        return (
+            self.length_pool * self.count_pool / self.M_IN_KM
+            / self.duration
+        )
 
     def get_spent_calories(self) -> int:
         """Получить количество затраченных калорий.
-        cf_swm_1, cf_swm_2 - коэффициенты, используемые для расчета
-        количества потраченных калорий в тренировке Swimming.
         """
-        cf_swm_1 = 1.1
-        cf_swm_2 = 2
-        calories = (self.get_mean_speed() + cf_swm_1) * cf_swm_2 * self.weight
-        return calories
+        return (
+            (self.get_mean_speed() + self.COEFF_CAL_SWM_1)
+            * self.COEFF_CAL_SWM_2 * self.weight
+        )
 
 
 def read_package(workout_type: str, data: list) -> Training:
     """Прочитать данные полученные от датчиков."""
-    training_type_dict = {'SWM': Swimming,
-                          'RUN': Running,
-                          'WLK': SportsWalking}
-    return training_type_dict[workout_type](*data)
+    try:
+        training_type_dict: Dict[str, str] = {'SWM': Swimming,
+                                              'RUN': Running,
+                                              'WLK': SportsWalking}
+        return training_type_dict[workout_type](*data)
+    except TypeError:
+        print('Указанный тип тренировки не поддерживается.')
 
 
 def main(training: Training) -> None:
     """Главная функция."""
-    info = training.show_training_info()
-    print(info.get_message())
+    try:
+        print(training.show_training_info().get_message())
+    except AttributeError:
+        print('Не хватает данных.')
 
 
 if __name__ == '__main__':
