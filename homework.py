@@ -17,6 +17,7 @@ class InfoMessage:
     distance: float
     speed: float
     calories: float
+
     TEXT_INFO: str = ('Тип тренировки: {training_type}; '
                       'Длительность: {duration:.3f} ч.; '
                       'Дистанция: {distance:.3f} км; '
@@ -40,6 +41,7 @@ class Training:
     action: int = 0
     duration: float = 0
     weight: float = 0
+
     M_IN_KM: ClassVar[int] = 1000
     LEN_STEP: ClassVar[float] = 0.65
     M_IN_H: ClassVar[int] = 60
@@ -73,14 +75,14 @@ class Training:
 class Running(Training):
     """Тренировка: бег."""
 
-    CORRECTION_COEFF_1: ClassVar[int] = 18
-    CORRECTION_COEFF_2: ClassVar[int] = 20
+    SPEED_MULTI_RUN: ClassVar[int] = 18
+    SPEED_CORRECTOR: ClassVar[int] = 20
 
     def get_spent_calories(self) -> float:
         """Получить количество затраченных калорий."""
         return (
-            (self.CORRECTION_COEFF_1 * self.get_mean_speed()
-             - self.CORRECTION_COEFF_2) * self.weight / self.M_IN_KM
+            (self.SPEED_MULTI_RUN * self.get_mean_speed()
+             - self.SPEED_CORRECTOR) * self.weight / self.M_IN_KM
             * self.duration * self.M_IN_H
         )
 
@@ -92,18 +94,20 @@ class SportsWalking(Training):
     """
 
     height: float = 0
-    CORRECTION_COEFF_3: ClassVar[float] = 0.035
-    CORRECTION_COEFF_4: ClassVar[float] = 0.029
-    CORRECTION_COEFF_5: ClassVar[float] = 2
+
+    WEIGHT_MULTI: ClassVar[float] = 0.035
+    SPEED_MULTI_WLK: ClassVar[float] = 0.029
+    SPEED_ERECT: ClassVar[float] = 2
 
     def get_spent_calories(self) -> float:
         """Получить количество затраченных калорий."""
-        return(
-            (self.CORRECTION_COEFF_3 * self.weight + (self.get_mean_speed()
-             ** self.CORRECTION_COEFF_4 // self.height)
-             * self.CORRECTION_COEFF_5 * self.weight)
-            * self.duration * self.M_IN_H
+        weight_adj = self.WEIGHT_MULTI * self.weight
+        speed_adj = (
+            (self.get_mean_speed() ** self.SPEED_ERECT // self.height)
+            * self.SPEED_MULTI_WLK
         )
+        duration_min = self.duration * self.M_IN_H
+        return((weight_adj + speed_adj * self.weight) * duration_min)
 
 
 @dataclass
@@ -116,9 +120,10 @@ class Swimming(Training):
 
     length_pool: int = 25
     count_pool: int = 0
+
     LEN_STEP: ClassVar[float] = 1.38
-    CORRECTION_COEFF_6: ClassVar[float] = 1.1
-    CORRECTION_COEFF_7: ClassVar[float] = 2
+    SPEED_ADD: ClassVar[float] = 1.1
+    SPEED_MULTI_SWM: ClassVar[float] = 2
 
     def get_mean_speed(self) -> float:
         """Получить среднюю скорость движения."""
@@ -130,14 +135,14 @@ class Swimming(Training):
     def get_spent_calories(self) -> int:
         """Получить количество затраченных калорий."""
         return (
-            (self.get_mean_speed() + self.CORRECTION_COEFF_6)
-            * self.CORRECTION_COEFF_7 * self.weight
+            (self.get_mean_speed() + self.SPEED_ADD)
+            * self.SPEED_MULTI_SWM * self.weight
         )
 
 
 def read_package(workout_type: str, data: list) -> Training:
     """Прочитать данные полученные от датчиков."""
-    training_type_dict: Dict[str, str] = {
+    training_type_dict: Dict[str, Training] = {
         'SWM': Swimming,
         'RUN': Running,
         'WLK': SportsWalking
